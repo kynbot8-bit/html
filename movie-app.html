@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rạp Nhà – App phim</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#17141f;--surface:#231f31;--line:#352f48;--text:#f2ede4;--muted:#a49cb8;--accent:#f5b942;--on-accent:#1b1405;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f6f2ea;--surface:#fff;--line:#e2dccf;--text:#221d2e;--muted:#6f6882;--accent:#b8730a;--on-accent:#fff;color-scheme:light}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font:400 15px/1.5 "DM Sans",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+h1,h2{font-family:"Bricolage Grotesque","DM Sans",sans-serif;letter-spacing:-.02em}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:20px clamp(16px,4vw,40px) 8px}
+h1{font-size:28px;font-weight:800;flex:1 1 auto}
+.status{font-size:12px;color:var(--muted)}
+.icon-btn{padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.search{flex:1 1 100%;display:flex}
+.search input{width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit}
+nav,.chips{display:flex;gap:8px;overflow-x:auto;padding:8px clamp(16px,4vw,40px);scrollbar-width:none}
+nav button{padding:8px 4px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+nav button[aria-pressed=true]{color:var(--text);border-color:var(--accent)}
+.chips button,.eps button{padding:6px 14px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;font-size:13px;color:var(--muted)}
+.chips button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+main{padding:12px clamp(16px,4vw,40px) 48px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px}
+.card{text-align:left;position:relative;display:block;width:100%}
+.poster{aspect-ratio:2/3;border-radius:10px;overflow:hidden;position:relative;background:var(--surface);display:flex;align-items:flex-end;padding:10px;font:800 17px/1.1 "Bricolage Grotesque",sans-serif;color:#fff;box-shadow:0 0 0 1px var(--line)}
+.card:hover .poster{box-shadow:0 0 0 2px var(--accent)}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.eps{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.eps button:hover{border-color:var(--accent)}
+.card h2{font-size:14px;font-weight:600;margin-top:8px;line-height:1.3}
+.card .meta{font-size:12px;color:var(--muted)}
+.heart{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;background:rgba(20,16,28,.75);color:#fff;font-size:16px}
+.heart[aria-pressed=true]{color:var(--accent)}
+.msg{padding:40px 0;text-align:center;color:var(--muted)}
+.more{display:block;margin:28px auto 0;padding:10px 22px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-weight:500}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);padding:0;width:min(640px,calc(100vw - 24px));max-height:90vh;overflow:auto}
+dialog::backdrop{background:rgba(8,6,14,.7)}
+.hero{height:200px;background:var(--bg) center/cover}
+.body{padding:20px}
+.body h2{font-size:24px}
+.body p{margin:12px 0;max-width:62ch}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btn{padding:10px 18px;border-radius:10px;border:1px solid var(--line);display:inline-block;text-decoration:none;color:var(--text)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:500}
+label{display:block;margin-top:14px;font-size:13px;color:var(--muted)}
+label input,label select{display:block;width:100%;margin-top:4px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.note{font-size:12px;color:var(--muted);margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Rạp Nhà</h1>
+  <span class="status" id="status"></span>
+  <button class="icon-btn" id="openCfg">Cài đặt API</button>
+  <div class="search"><input id="q" type="search" placeholder="Tìm phim theo tên" aria-label="Tìm phim"></div>
+</header>
+<nav id="tabs" aria-label="Danh mục"></nav>
+<div class="chips" id="genres" aria-label="Thể loại"></div>
+<main><div id="grid" class="grid"></div><div id="msg" class="msg" hidden></div><button class="more" id="more" hidden>Xem thêm</button></main>
+
+<dialog id="detail"><div id="detailBody"></div></dialog>
+
+<dialog id="cfgDlg"><div class="body">
+  <h2>Cài đặt API</h2>
+  <label>Nguồn dữ liệu<select id="cProv"><option value="vsmov">VSMOV (không cần key)</option><option value="tmdb">TMDB (cần key)</option><option value="demo">Dữ liệu demo</option></select></label>
+  <label>VSMOV – Base URL API<input id="cVsBase"></label>
+  <label>VSMOV – Base URL ảnh (để trống = tự nhận)<input id="cVsImg"></label>
+  <label>VSMOV – CORS proxy (tuỳ chọn, ví dụ https://corsproxy.io/?)<input id="cVsProxy"></label>
+  <p class="note">Phần dưới chỉ dùng khi chọn TMDB: dán API key (v3) hoặc Read Access Token.</p>
+  <label>TMDB – API key hoặc Bearer token<input id="cKey" autocomplete="off"></label>
+  <label>Base URL API<input id="cBase"></label>
+  <label>Base URL ảnh<input id="cImg"></label>
+  <label>Ngôn ngữ<input id="cLang"></label>
+  <p class="note">Key lưu trong trình duyệt của bạn. Khi đưa lên production, hãy gọi API qua server proxy để không lộ key.</p>
+  <div class="row"><button class="btn primary" id="saveCfg">Lưu và tải lại</button><button class="btn" id="closeCfg">Đóng</button></div>
+</div></dialog>
+
+<script>
+/* ============ 1. CẤU HÌNH ============ */
+const $=s=>document.querySelector(s);
+const store={
+  get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+let cfg={provider:'vsmov',vsBase:'https://vsmov.com/api',vsImg:'',vsProxy:'',base:'https://api.themoviedb.org/3',key:'',img:'https://image.tmdb.org/t/p/',lang:'vi-VN',...store.get('cfg',{})};
+let favs=store.get('favs',[]);
+const live=()=>api()!==DEMO;
+const TABS={
+  vsmov:[['phim-moi-cap-nhat','Mới cập nhật'],['phim-bo','Phim bộ'],['phim-le','Phim lẻ'],['hoat-hinh','Hoạt hình'],['subteam','Vietsub độc quyền'],['favs','Yêu thích']],
+  other:[['popular','Phổ biến'],['now_playing','Đang chiếu'],['top_rated','Top đánh giá'],['favs','Yêu thích']]
+};
+const tabs=()=>cfg.provider==='vsmov'?TABS.vsmov:TABS.other;
+const S={tab:'popular',genre:null,q:'',page:1,items:[],more:false,loading:false};
+
+/* ============ 2. API ADAPTER ============
+   Muốn đổi sang API khác: chỉ cần sửa call(), norm() và 3 hàm trong API.
+   Mọi nơi khác trong app chỉ dùng object phim chuẩn:
+   {id,title,year,rating,poster,backdrop,overview,genres[],genreIds[],runtime,trailer} */
+async function call(path,params={}){
+  const u=new URL(cfg.base.replace(/\/$/,'')+path);
+  const bearer=cfg.key.length>40;
+  if(!bearer)u.searchParams.set('api_key',cfg.key.trim());
+  u.searchParams.set('language',cfg.lang);
+  for(const k in params)if(params[k]!=null&&params[k]!=='')u.searchParams.set(k,params[k]);
+  const r=await fetch(u,bearer?{headers:{Authorization:'Bearer '+cfg.key.trim()}}:{});
+  if(!r.ok)throw new Error('API trả về lỗi '+r.status);
+  return r.json();
+}
+const norm=m=>({
+  id:m.id,title:m.title||m.name||'Không tên',year:(m.release_date||'').slice(0,4),
+  rating:m.vote_average?+m.vote_average.toFixed(1):null,
+  poster:m.poster_path?cfg.img+'w342'+m.poster_path:null,
+  backdrop:m.backdrop_path?cfg.img+'w780'+m.backdrop_path:null,
+  overview:m.overview||'',genres:(m.genres||[]).map(g=>g.name),genreIds:m.genre_ids||[],runtime:m.runtime||null,trailer:null
+});
+const LIVE={
+  genres:async()=>(await call('/genre/movie/list')).genres,
+  list:async({tab,genre,q,page})=>{
+    const d=q?await call('/search/movie',{query:q,page})
+      :genre?await call('/discover/movie',{with_genres:genre,page,sort_by:'popularity.desc'})
+      :await call('/movie/'+tab,{page});
+    return d.results.map(norm);
+  },
+  detail:async id=>{
+    const m=await call('/movie/'+id,{append_to_response:'videos'});
+    const o=norm(m);
+    const v=(m.videos?.results||[]).find(v=>v.site==='YouTube'&&v.type==='Trailer');
+    if(v)o.trailer='https://www.youtube.com/watch?v='+v.key;
+    return o;
+  }
+};
+
+/* ============ 2b. VSMOV ============
+   Endpoint theo docs: /danh-sach/{slug}, /tim-kiem?keyword=, /phim/{slug}, /the-loai.
+   norm() chấp nhận cả dạng {data:{items}} lẫn {items}; nếu JSON thực tế khác, sửa tại đây. */
+const strip=h=>String(h||'').replace(/<[^>]*>/g,'').trim();
+const VS={
+  async get(path,params={}){
+    const u=new URL(cfg.vsBase.replace(/\/$/,'')+path);
+    for(const k in params)if(params[k]!=null&&params[k]!=='')u.searchParams.set(k,params[k]);
+    const r=await fetch(cfg.vsProxy?cfg.vsProxy+encodeURIComponent(u):u);
+    if(!r.ok)throw new Error('API trả về lỗi '+r.status);
+    return r.json();
+  },
+  img(f,cdn){
+    if(!f)return null;
+    if(/^(https?:)?\/\//.test(f))return f;
+    if(cfg.vsImg)return cfg.vsImg.replace(/\/?$/,'/')+f;
+    if(cdn&&/uploads/.test(cdn))return cdn.replace(/\/?$/,'/')+f;
+    return (cdn||new URL(cfg.vsBase).origin).replace(/\/$/,'')+'/uploads/movies/'+f;
+  },
+  norm(m,cdn){
+    const t=m.tmdb&&m.tmdb.vote_average;
+    return {id:m.slug,title:m.name||'Không tên',sub:m.origin_name||'',year:String(m.year||''),
+      rating:t?+(+t).toFixed(1):null,poster:VS.img(m.thumb_url,cdn),backdrop:VS.img(m.poster_url,cdn),
+      overview:strip(m.content),genres:(m.category||[]).map(c=>c.name),genreIds:[],
+      time:m.time||'',status:m.episode_current||'',actors:(m.actor||[]).join(', '),
+      trailer:m.trailer_url||null,episodes:m.episodes||[]};
+  },
+  genres:async()=>{
+    const d=await VS.get('/the-loai');const x=d.data||d;const a=x.items||x;
+    return (Array.isArray(a)?a:[]).map(g=>({id:g.slug,name:g.name}));
+  },
+  list:async({tab,genre,q,page})=>{
+    const d=q?await VS.get('/tim-kiem',{keyword:q,page,limit:24})
+      :genre?await VS.get('/the-loai/'+genre,{page,limit:24})
+      :await VS.get('/danh-sach/'+tab,{page,limit:24});
+    const x=d.data||d;const cdn=x.APP_DOMAIN_CDN_IMAGE||d.pathImage||'';
+    if(!Array.isArray(x.items))throw new Error('Không đọc được danh sách phim. JSON trả về có các khoá: '+Object.keys(d).join(', ')+(x!==d?' | data: '+Object.keys(x).join(', '):''));
+    return x.items.map(m=>VS.norm(m,cdn));
+  },
+  detail:async slug=>{
+    const d=await VS.get('/phim/'+slug);const x=d.data||d;
+    const m=x.item||x.movie||d.movie||x;
+    const o=VS.norm(m,x.APP_DOMAIN_CDN_IMAGE||d.pathImage||'');
+    o.episodes=d.episodes||x.episodes||m.episodes||[];
+    return o;
+  }
+};
+
+/* ============ 3. DỮ LIỆU DEMO (khi chưa có key) ============ */
+const DG=[{id:1,name:'Hành động'},{id:2,name:'Tình cảm'},{id:3,name:'Viễn tưởng'},{id:4,name:'Kinh dị'},{id:5,name:'Hoạt hình'}];
+const DM=[
+ ['Đêm Cuối Ở Sài Gòn',2024,8.1,[1],'Một tay đua xe đêm phải vượt qua cả thành phố trước bình minh để cứu em trai.'],
+ ['Mùa Hạ Không Tên',2023,7.6,[2],'Hai người xa lạ cùng kẹt lại ở một thị trấn biển trong cơn bão kéo dài ba ngày.'],
+ ['Tàu Ngầm 9',2025,7.9,[3,1],'Phi hành đoàn dưới đáy đại dương phát hiện một tín hiệu không thuộc về Trái Đất.'],
+ ['Căn Nhà Số 13',2022,6.8,[4],'Gia đình trẻ chuyển đến căn nhà cũ và nghe thấy tiếng bước chân lúc 3 giờ sáng.'],
+ ['Cá Voi Nhỏ',2024,8.4,[5],'Chú cá voi nhỏ đi tìm bài hát đã mất của cả đàn.'],
+ ['Biên Giới Xanh',2021,7.2,[1,3],'Đội cứu hộ cuối cùng băng qua vùng đất hoang để đưa nguồn nước về thành phố.'],
+ ['Thư Gửi Mùa Thu',2023,7.4,[2],'Những bức thư gửi nhầm địa chỉ mở ra một mối duyên muộn.'],
+ ['Sao Băng Cuối Tuần',2025,8.0,[5,3],'Ba đứa trẻ tìm cách đưa một ngôi sao băng về nhà trong một đêm.']
+].map((m,i)=>({id:i+1,title:m[0],year:String(m[1]),rating:m[2],poster:null,backdrop:null,overview:m[4],genreIds:m[3],genres:m[3].map(g=>DG.find(x=>x.id===g).name),runtime:90+i*7,trailer:null}));
+const DEMO={
+  genres:async()=>DG,
+  list:async({tab,genre,q})=>{
+    let r=[...DM];
+    if(q)r=r.filter(m=>m.title.toLowerCase().includes(q.toLowerCase()));
+    else if(genre)r=r.filter(m=>m.genreIds.includes(+genre));
+    else if(tab==='top_rated')r.sort((a,b)=>b.rating-a.rating);
+    else if(tab==='now_playing')r=r.filter(m=>+m.year>=2024);
+    return r;
+  },
+  detail:async id=>DM.find(m=>m.id===id)
+};
+const api=()=>cfg.provider==='vsmov'?VS:(cfg.provider==='tmdb'&&cfg.key.trim())?LIVE:DEMO;
+
+/* ============ 4. GIAO DIỆN ============ */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isFav=id=>favs.some(f=>f.id===id);
+const hue=m=>[...String(m.id)].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
+const posterStyle=m=>`background:linear-gradient(160deg,hsl(${hue(m)} 45% 32%),hsl(${(hue(m)+50)%360} 50% 16%))`;
+
+function drawTabs(){
+  $('#tabs').innerHTML=tabs().map(([k,l])=>`<button data-tab="${k}" aria-pressed="${S.tab===k&&!S.q&&!S.genre}">${l}</button>`).join('');
+}
+async function drawGenres(){
+  try{
+    const g=await api().genres();
+    $('#genres').innerHTML=g.map(x=>`<button data-genre="${x.id}" aria-pressed="${S.genre==x.id}">${esc(x.name)}</button>`).join('');
+  }catch{$('#genres').innerHTML=''}
+}
+function draw(){
+  drawTabs();
+  document.querySelectorAll('#genres button').forEach(b=>b.setAttribute('aria-pressed',S.genre==b.dataset.genre));
+  $('#status').textContent=live()?'Nguồn: '+(cfg.provider==='vsmov'?'VSMOV':'TMDB'):'Đang dùng dữ liệu demo';
+  $('#grid').innerHTML=S.items.map(m=>`
+    <div class="card"><button class="card-open" data-id="${esc(m.id)}" style="display:block;width:100%;text-align:left">
+      <div class="poster" style="${posterStyle(m)}">${esc(m.title)}${m.poster?`<img src="${esc(m.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</div>
+      <h2>${esc(m.title)}</h2><div class="meta">${esc(m.year)}${m.rating?' · ★ '+m.rating:''}</div></button>
+      <button class="heart" data-fav="${esc(m.id)}" aria-pressed="${isFav(m.id)}" aria-label="Yêu thích">${isFav(m.id)?'♥':'♡'}</button></div>`).join('');
+  const msg=$('#msg');
+  msg.hidden=!(S.loading||!S.items.length);
+  msg.textContent=S.loading?'Đang tải…':(S.tab==='favs'&&!S.q&&!S.genre?'Chưa có phim yêu thích. Nhấn ♡ trên poster để lưu.':'Không tìm thấy phim nào.');
+  $('#more').hidden=!S.more||S.loading;
+}
+async function load(reset=true){
+  if(reset){S.page=1;S.items=[];}
+  if(S.tab==='favs'&&!S.q&&!S.genre){S.items=favs;S.more=false;S.loading=false;draw();return}
+  S.loading=true;draw();
+  try{
+    const r=await api().list(S);
+    S.items=S.items.concat(r);S.more=live()&&r.length>=20;
+  }catch(e){
+    $('#msg').hidden=false;
+    $('#msg').textContent=e.message+(cfg.provider==='vsmov'?'. Không gọi được VSMOV: nếu trình duyệt báo CORS, hãy chạy file qua server cục bộ (vd: npx serve) hoặc chuyển sang dữ liệu demo trong Cài đặt API.':'. Kiểm tra API key trong Cài đặt API.');
+    S.loading=false;$('#more').hidden=true;return;
+  }
+  S.loading=false;draw();
+}
+
+async function openDetail(id){
+  let m=S.items.find(x=>x.id==id)||favs.find(x=>x.id==id);
+  const dlg=$('#detail');
+  const render=m=>{
+    $('#detailBody').innerHTML=`
+      <div class="hero" style="${m.backdrop?`background-image:url(${esc(m.backdrop)})`:posterStyle(m)}"></div>
+      <div class="body"><h2>${esc(m.title)}</h2>${m.sub?`<div class="note" style="margin:2px 0 0">${esc(m.sub)}</div>`:''}
+      <div class="note">${[m.year,m.time||(m.runtime?m.runtime+' phút':''),m.status,m.rating?'★ '+m.rating:'',m.genres.join(', ')].filter(Boolean).map(esc).join(' · ')}</div>
+      <p>${esc(m.overview)||'Chưa có mô tả.'}</p>
+      ${m.actors?`<p class="note">Diễn viên: ${esc(m.actors)}</p>`:''}
+      <div id="player"></div>
+      ${(m.episodes||[]).map((s,si)=>`<div class="note" style="margin-top:12px">${esc(s.server_name)}</div><div class="eps">${(s.server_data||[]).map((e,ei)=>`<button data-ep="${si}-${ei}">${esc(e.name)}</button>`).join('')}</div>`).join('')}
+      <div class="row">${m.trailer?`<a class="btn primary" href="${esc(m.trailer)}" target="_blank" rel="noopener">Xem trailer</a>`:''}
+      <button class="btn" id="dFav">${isFav(m.id)?'Bỏ yêu thích':'Thêm vào yêu thích'}</button>
+      <button class="btn" id="dClose">Đóng</button></div></div>`;
+    $('#dFav').onclick=()=>{toggleFav(m);render(m)};
+    $('#dClose').onclick=()=>dlg.close();
+    $('#detailBody').onclick=e=>{
+      const b=e.target.closest('[data-ep]');if(!b)return;
+      const [si,ei]=b.dataset.ep.split('-');const ep=m.episodes[si].server_data[ei];
+      $('#player').innerHTML=ep.link_embed
+        ?`<iframe src="${esc(ep.link_embed)}" allowfullscreen referrerpolicy="no-referrer" style="width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:12px"></iframe>`
+        :(ep.link_m3u8?`<a class="btn primary" style="margin-top:12px" href="${esc(ep.link_m3u8)}" target="_blank" rel="noopener">Mở luồng phát (m3u8)</a>`:'');
+    };
+  };
+  render(m);dlg.showModal();
+  if(live()){try{m=await api().detail(id);if(dlg.open)render(m)}catch{}}
+}
+function toggleFav(m){
+  favs=isFav(m.id)?favs.filter(f=>f.id!==m.id):[...favs,m];
+  store.set('favs',favs);
+  if(S.tab==='favs'&&!S.q&&!S.genre)S.items=favs;
+  draw();
+}
+
+/* ============ 5. SỰ KIỆN ============ */
+$('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;S.tab=b.dataset.tab;S.q='';S.genre=null;$('#q').value='';load()};
+$('#genres').onclick=e=>{const b=e.target.closest('[data-genre]');if(!b)return;S.genre=S.genre==b.dataset.genre?null:b.dataset.genre;S.q='';$('#q').value='';load()};
+$('#grid').onclick=e=>{
+  const f=e.target.closest('[data-fav]');
+  if(f){const id=f.dataset.fav;const m=S.items.find(x=>x.id==id);if(m)toggleFav(m);return}
+  const o=e.target.closest('[data-id]');if(o)openDetail(o.dataset.id);
+};
+$('#more').onclick=()=>{S.page++;load(false)};
+let t;$('#q').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{S.q=e.target.value.trim();S.genre=null;load()},350)};
+$('#openCfg').onclick=()=>{$('#cProv').value=cfg.provider;$('#cVsBase').value=cfg.vsBase;$('#cVsImg').value=cfg.vsImg;$('#cVsProxy').value=cfg.vsProxy;$('#cKey').value=cfg.key;$('#cBase').value=cfg.base;$('#cImg').value=cfg.img;$('#cLang').value=cfg.lang;$('#cfgDlg').showModal()};
+$('#closeCfg').onclick=()=>$('#cfgDlg').close();
+$('#saveCfg').onclick=()=>{
+  cfg={provider:$('#cProv').value,vsBase:$('#cVsBase').value.trim()||'https://vsmov.com/api',vsImg:$('#cVsImg').value.trim(),vsProxy:$('#cVsProxy').value.trim(),key:$('#cKey').value.trim(),base:$('#cBase').value.trim(),img:$('#cImg').value.trim(),lang:$('#cLang').value.trim()||'vi-VN'};
+  store.set('cfg',cfg);$('#cfgDlg').close();S.genre=null;S.q='';$('#q').value='';S.tab=tabs()[0][0];drawGenres();load();
+};
+
+S.tab=tabs()[0][0];drawGenres();load();
+</script>
+</body>
+</html>
